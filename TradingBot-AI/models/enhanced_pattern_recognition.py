@@ -61,7 +61,7 @@ class EnhancedPatternRecognition:
             }
             
         except Exception as e:
-            print(f"⚠️ Pattern analysis error: {e}")
+            print(f"⚠️ Pattern stats error: {e}")
             return None
 
     def analyze_peak_hunter_pattern(self, candles):
