@@ -13,8 +13,6 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from .volume_prediction_model import VolumePredictor
-
 # استيراد dl_client إذا كان متوفراً
 try:
     from dl_client_v2 import DeepLearningClientV2
@@ -49,22 +47,18 @@ class MacroTrendAdvisor:
         self._is_currently_bull : bool = False
         self._macro_start_time  : Optional[float] = None
 
-        # ⚡ نماذج DL المدربة من DB
-        self.volume_predictor = VolumePredictor()
-        self.sentiment_analyzer = None
-        self.liquidity_analyzer = None
-        self.smart_money_tracker = None
-        self.crypto_news_analyzer = None
-
         # المايكرو يستخدم dl_client المشترك المحمل مسبقاً
         self.dl_client = dl_client
 
         # استخدام النماذج المحملة من cache RAM مباشرة ككائنات جاهزة
-        self.volume_predictor = self.dl_client._models.get('volume_pred') if self.dl_client and hasattr(self.dl_client, '_models') else None
-        self.sentiment_analyzer = self.dl_client._models.get('sentiment') if self.dl_client and hasattr(self.dl_client, '_models') else None
-        self.liquidity_analyzer = self.dl_client._models.get('liquidity') if self.dl_client and hasattr(self.dl_client, '_models') else None
-        self.smart_money_tracker = self.dl_client._models.get('smart_money') if self.dl_client and hasattr(self.dl_client, '_models') else None
-        self.crypto_news_analyzer = self.dl_client._models.get('crypto_news') if self.dl_client and hasattr(self.dl_client, '_models') else None
+        # تأكيد الأسماء الصحيحة بناءً على ما يتم حقنه في الداتابيز
+        models_cache = getattr(self.dl_client, '_models', {}) if self.dl_client else {}
+        
+        self.volume_predictor     = models_cache.get('volume_pred')
+        self.sentiment_analyzer   = models_cache.get('sentiment')
+        self.liquidity_analyzer   = models_cache.get('liquidity')
+        self.smart_money_tracker  = models_cache.get('smart_money')
+        self.crypto_news_analyzer = models_cache.get('crypto_news')
 
         # كاش predict_market المجمّع
         self._last_prediction      : dict  = {}
@@ -133,32 +127,32 @@ class MacroTrendAdvisor:
                         bull_votes = 0
                         total_models = 0
 
-                        # volume_pred
-                        if self.volume_predictor and self.volume_predictor.model:
+                        # volume_pred (النموذج محمل ككائن LightGBM/XGBoost جاهز)
+                        if self.volume_predictor:
                             spike_proba = self.volume_predictor.predict(quick_data)
                             if spike_proba > 0.6: bull_votes += 1
                             total_models += 1
 
                         # sentiment
-                        if self.sentiment_analyzer and self.sentiment_analyzer.model:
+                        if self.sentiment_analyzer:
                             sent_score = self.sentiment_analyzer.predict(quick_data)
                             if sent_score > 0.5: bull_votes += 1
                             total_models += 1
 
                         # liquidity
-                        if self.liquidity_analyzer and self.liquidity_analyzer.model:
+                        if self.liquidity_analyzer:
                             liq_score = self.liquidity_analyzer.predict(quick_data)
                             if liq_score > 0.5: bull_votes += 1
                             total_models += 1
 
                         # smart_money
-                        if self.smart_money_tracker and self.smart_money_tracker.model:
+                        if self.smart_money_tracker:
                             sm_score = self.smart_money_tracker.predict(quick_data)
                             if sm_score > 0.5: bull_votes += 1
                             total_models += 1
 
                         # crypto_news
-                        if self.crypto_news_analyzer and self.crypto_news_analyzer.model:
+                        if self.crypto_news_analyzer:
                             news_score = self.crypto_news_analyzer.predict(quick_data)
                             if news_score > 0.5: bull_votes += 1
                             total_models += 1
